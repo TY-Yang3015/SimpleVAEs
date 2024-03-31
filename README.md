@@ -1,1 +1,1 @@
-# TensorFlow-VAE
+# TensorFlow-SimpleVAE
