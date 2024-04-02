@@ -6,7 +6,7 @@ There is also an experimental implementation (deprecated) of Simple/cVAE in `jax
 
 You are recommended to use the `ResVAE` implementation, which is the best-performing implementation in this repo.
 
-However, it has not been verified since the author lacks access to sufficient computational resources. The framework itself is original, but information from the following sources has been considered as references.
+The `jax` implementation has not been verified since the author lacks access to sufficient computational resources. The framework itself is original, but information from the following sources has been considered as references.
 
 --- 
 
