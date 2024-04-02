@@ -82,8 +82,8 @@ class ContinuousVariationalAutoEncoder:
                 print('step: {};  train elbo: {}; validation elbo: {};'.format(step
                                                                                , train_loss, val_loss))
 
-    def encode(self, data, save=True):
-        mean, std = self.encoder(data)
+   def encode(self, data, save=True):
+        mean, std = self.encoder(data)  # Assuming we only care about the mean for the latent representation
 
         if save is True:
             np.savetxt('./encoded_latent_mean.txt', mean.numpy())
@@ -94,9 +94,9 @@ class ContinuousVariationalAutoEncoder:
     def reconstruct(self, data, save=True):
         mean, std = self.encoder(data)
         z = mean + std * tf.random.normal(mean.shape)
-        mu, logvar = self.decoder(z)
+        rec, _ = self.decoder(z)
 
-        image = mu.numpy()
+        image = rec.numpy()
 
         if save is True:
             np.savetxt('./reconstructed_images.txt',
@@ -106,26 +106,31 @@ class ContinuousVariationalAutoEncoder:
         return image
 
     def save_model(self, save_dir='./model_save'):
-        encoder_save_path = os.path.join(save_dir, 'encoder')
-        decoder_save_path = os.path.join(save_dir, 'decoder')
+        encoder_save_path = os.path.join(save_dir, 'encoder.h5')
+        decoder_save_path = os.path.join(save_dir, 'decoder.h5')
 
-        os.makedirs(encoder_save_path, exist_ok=True)
-        os.makedirs(decoder_save_path, exist_ok=True)
+        os.makedirs(save_dir, exist_ok=True)
 
-        self.encoder.save(encoder_save_path)
-        self.decoder.save(decoder_save_path)
+        self.encoder.save_weights(encoder_save_path)
+        self.decoder.save_weights(decoder_save_path)
 
         print(f'models saved successfully in {save_dir}')
 
     def load_model(self, load_dir='./model_save'):
 
-        encoder_load_path = os.path.join(load_dir, 'encoder')
-        decoder_load_path = os.path.join(load_dir, 'decoder')
+        encoder_load_path = os.path.join(load_dir, 'encoder.h5')
+        decoder_load_path = os.path.join(load_dir, 'decoder.h5')
 
         if not os.path.exists(encoder_load_path) or not os.path.exists(decoder_load_path):
             raise FileNotFoundError("directory does not exist.")
 
-        self.encoder = tf.keras.models.load_model(encoder_load_path)
-        self.decoder = tf.keras.models.load_model(decoder_load_path)
+        dummy = tf.ones(shape=(1,self._output_shape[0], self._output_shape[1], self._output_shape[2]))
+
+        dummy_mu, dummy_std = self.encoder(dummy)
+
+        dummy = self.decoder(dummy_mu)
+
+        self.encoder.load_weights(encoder_load_path)
+        self.decoder.load_weights(decoder_load_path)
 
         print(f'models loaded successfully from {load_dir}')

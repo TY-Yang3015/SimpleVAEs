@@ -11,7 +11,7 @@ class ConvContinuousVariationalAutoEncoder:
     def __init__(
             self,
             loss_evaluator: ContinuousLoss,
-            optimiser: tf.keras.optimizers,
+            optimiser_learning_schedule:list,
             latent_size: int,
             output_shape: tf.Tensor
     ):
@@ -20,7 +20,8 @@ class ConvContinuousVariationalAutoEncoder:
         self._output_shape = output_shape
         self.loss_evaluator = loss_evaluator
 
-        self.optimiser = optimiser
+        self.encoder_optimiser = tf.optimizers.Adam(learning_rate=optimiser_learning_schedule)
+        self.decoder_optimiser = tf.optimizers.Adam(learning_rate=optimiser_learning_schedule)
 
         self.encoder = ConvEncoder(self._latent_size)
         self.decoder = ConvContinuousDecoder(self._output_shape)
@@ -37,9 +38,9 @@ class ConvContinuousVariationalAutoEncoder:
             mean, std = self.encoder(x)
             var = tf.square(std)
             z = mean + std * tf.random.normal(mean.shape)
-            mu, logvar = self.decoder(z)
+            rec = self.decoder(z)
 
-            v_loss = self.loss_evaluator.evaluate(x, mean, var, mu, logvar)
+            v_loss = self.loss_evaluator.evaluate(x, mean, var, rec)
 
             loss = tf.math.abs(v_loss)
 
@@ -49,18 +50,19 @@ class ConvContinuousVariationalAutoEncoder:
 
         del tape
 
-        self.optimiser.apply_gradients(zip(encoder_grad
+
+        self.encoder_optimiser.apply_gradients(zip(encoder_grad
                                            , self.encoder.trainable_variables))
-        self.optimiser.apply_gradients(zip(decoder_grad
+        self.decoder_optimiser.apply_gradients(zip(decoder_grad
                                            , self.decoder.trainable_variables))
 
         val_mean, val_std = self.encoder(val_x)
         val_var = tf.square(val_std)
         val_z = val_mean + val_std * tf.random.normal(val_mean.shape)
-        val_mu, val_logvar = self.decoder(val_z)
+        val_rec = self.decoder(val_z)
 
         val_loss = self.loss_evaluator.evaluate(val_x, val_mean
-                                                , val_var, val_mu, val_logvar)
+                                                , val_var, val_rec)
 
         return v_loss, val_loss
 
@@ -81,11 +83,12 @@ class ConvContinuousVariationalAutoEncoder:
 
             if (tf.math.abs(train_loss) < threshold_loss[0]) and (tf.math.abs(val_loss) < threshold_loss[1]):
                 print('exit via threshold condition.')
-                print(f'final step: {step};  final train elbo: {train_loss}; final validation elbo: {val_loss};')
+                print(f'final step: {step};  final train loss: {train_loss}; final validation loss: {val_loss};')
                 break
 
             if step % eval_freq == 0:
-                print(f'step: {step};  train elbo: {train_loss}; validation elbo: {val_loss};')
+                print(f'step: {step};  train loss: {train_loss}; validation loss: {val_loss};')
+                clear_output(wait=True)
 
     def encode(self, data, save=True):
         mean, std = self.encoder(data)  # Assuming we only care about the mean for the latent representation
@@ -99,7 +102,7 @@ class ConvContinuousVariationalAutoEncoder:
     def reconstruct(self, data, save=True):
         mean, std = self.encoder(data)
         z = mean + std * tf.random.normal(mean.shape)
-        rec, _ = self.decoder(z)
+        rec = self.decoder(z)
 
         image = rec.numpy()
 
@@ -139,5 +142,3 @@ class ConvContinuousVariationalAutoEncoder:
         self.decoder.load_weights(decoder_load_path)
 
         print(f'models loaded successfully from {load_dir}')
-
-
